@@ -1,0 +1,5 @@
+pipeline-utility-steps:2.13.0
+git:5.2.1
+workflow-aggregator:2.7
+docker-workflow:1.38
+credentials-binding:1.30
