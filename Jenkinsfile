@@ -1,4 +1,4 @@
-﻿pipeline {
+pipeline {
     agent any
     
     stages {
@@ -55,9 +55,9 @@
                     
                     # Verify the app is running
                     if ps -p $APP_PID > /dev/null; then
-                        echo "✅ Process is running"
+                        echo "Process is running"
                     else
-                        echo "❌ Process failed to start"
+                        echo "Process failed to start"
                         cat app.log
                         exit 1
                     fi
@@ -66,7 +66,7 @@
                     echo "Testing if app is responding..."
                     for i in 1 2 3 4 5; do
                         if curl -f http://localhost:3000; then
-                            echo "✅ App is responding on port 3000!"
+                            echo "App is responding on port 3000!"
                             break
                         else
                             echo "Attempt $i failed, waiting..."
@@ -84,10 +84,10 @@
     
     post {
         success {
-            echo '✅ Deployment successful! App should be running on port 3000'
+            echo 'Deployment successful! App should be running on port 3000'
         }
         failure {
-            echo '❌ Deployment failed!'
+            echo 'Deployment failed!'
             sh 'cat app.log || echo "No log file"'
         }
     }
