@@ -1,22 +1,26 @@
-pipeline {
+﻿pipeline {
     agent any
     
     stages {
         stage('Environment Check') {
             steps {
                 echo '=== ENVIRONMENT CHECK ==='
-                sh 'node --version || echo "Node.js not found"'
-                sh 'npm --version || echo "NPM not found"'
-                sh 'pwd'
-                sh 'ls -la'
+                sh '''
+                    node --version
+                    npm --version
+                    pwd
+                    ls -la
+                '''
             }
         }
         
         stage('Install Dependencies') {
             steps {
                 echo '=== INSTALLING DEPENDENCIES ==='
-                sh 'npm install'
-                sh 'ls -la node_modules/ || echo "Dependencies installed"'
+                sh '''
+                    npm install
+                    ls -la
+                '''
             }
         }
         
@@ -31,21 +35,48 @@ pipeline {
             steps {
                 echo '=== DEPLOYING APPLICATION ==='
                 sh '''
+                    # Kill any existing Node.js processes
                     echo "Killing any existing Node.js processes..."
                     pkill -f "node app.js" || echo "No existing processes"
-                    sleep 2
                     
+                    # Clean up old PID file
+                    rm -f app.pid
+                    
+                    # Start the application
                     echo "Starting Node.js application..."
                     nohup node app.js > app.log 2>&1 &
                     APP_PID=$!
                     echo $APP_PID > app.pid
                     echo "Started app with PID: $APP_PID"
                     
+                    # Wait for app to initialize
                     echo "Waiting for app to start..."
-                    sleep 5
+                    sleep 3
                     
+                    # Verify the app is running
+                    if ps -p $APP_PID > /dev/null; then
+                        echo "✅ Process is running"
+                    else
+                        echo "❌ Process failed to start"
+                        cat app.log
+                        exit 1
+                    fi
+                    
+                    # Test if app is responding
                     echo "Testing if app is responding..."
-                    curl -f http://localhost:3000 && echo "App is running!" || echo "App failed to respond"
+                    for i in 1 2 3 4 5; do
+                        if curl -f http://localhost:3000; then
+                            echo "✅ App is responding on port 3000!"
+                            break
+                        else
+                            echo "Attempt $i failed, waiting..."
+                            sleep 2
+                        fi
+                    done
+                    
+                    # Show app log
+                    echo "=== App Log ==="
+                    tail -10 app.log
                 '''
             }
         }
@@ -53,11 +84,11 @@ pipeline {
     
     post {
         success {
-            echo 'SUCCESS: Real deployment completed! '
-            echo 'App should be running on port 3000'
+            echo '✅ Deployment successful! App should be running on port 3000'
         }
         failure {
-            echo 'FAILURE: Deployment failed '
+            echo '❌ Deployment failed!'
+            sh 'cat app.log || echo "No log file"'
         }
     }
 }
