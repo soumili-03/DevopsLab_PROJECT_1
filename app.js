@@ -3,7 +3,7 @@ const app = express();
 const port = 3000;
 
 app.get('/', (req, res) => {
-    res.send(
+    res.send(`
         <html>
             <head>
                 <title>DevOps CI/CD Test</title>
@@ -41,13 +41,13 @@ app.get('/', (req, res) => {
                     <h1>🚀 DevOps Lab App</h1>
                     <div class="version">Version 2.0 - CI/CD ACTIVE!</div>
                     <p>If you see this, your CI/CD pipeline is working!</p>
-                    <p class="timestamp">Deployed at: </p>
+                    <p class="timestamp">Deployed at: ${new Date().toLocaleString()}</p>
                 </div>
             </body>
         </html>
-    );
+    `);
 });
 
 app.listen(port, () => {
-    console.log(App running on port  - Version 2.0 - Updated at );
+    console.log(`App running on port ${port} - Version 2.0 - Updated at ${new Date().toLocaleString()}`);
 });
