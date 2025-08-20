@@ -2,66 +2,62 @@ pipeline {
     agent any
     
     stages {
-        stage('Checkout') {
-            steps {
-                echo '=== CODE CHECKOUT ==='
-                echo 'Code successfully checked out from GitHub!'
-                sh 'ls -la'
-                sh 'pwd'
-            }
-        }
-        
         stage('Environment Check') {
             steps {
                 echo '=== ENVIRONMENT CHECK ==='
-                sh 'whoami'
-                sh 'uname -a'
-                echo 'Jenkins workspace ready!'
+                sh 'node --version || echo "Node.js not found"'
+                sh 'npm --version || echo "NPM not found"'
+                sh 'pwd'
+                sh 'ls -la'
             }
         }
         
-        stage('Build Simulation') {
+        stage('Install Dependencies') {
             steps {
-                echo '=== BUILD SIMULATION ==='
-                echo 'Simulating npm install...'
-                echo 'Dependencies would be installed here'
-                sh 'echo "Build completed successfully!"'
+                echo '=== INSTALLING DEPENDENCIES ==='
+                sh 'npm install'
+                sh 'ls -la node_modules/ || echo "Dependencies installed"'
             }
         }
         
-        stage('Test Simulation') {
+        stage('Run Tests') {
             steps {
-                echo '=== TEST SIMULATION ==='
-                echo 'Simulating npm test...'
-                echo 'All tests would pass here'
-                sh 'echo "Tests completed successfully!"'
+                echo '=== RUNNING TESTS ==='
+                sh 'npm test'
             }
         }
         
-        stage('Deploy Simulation') {
+        stage('Deploy Application') {
             steps {
-                echo '=== DEPLOY SIMULATION ==='
-                echo 'Application would be deployed here'
-                echo 'App would be available at http://localhost:3001'
-                sh 'echo "Deployment completed successfully!"'
+                echo '=== DEPLOYING APPLICATION ==='
+                sh '''
+                    echo "Killing any existing Node.js processes..."
+                    pkill -f "node app.js" || echo "No existing processes"
+                    sleep 2
+                    
+                    echo "Starting Node.js application..."
+                    nohup node app.js > app.log 2>&1 &
+                    APP_PID=$!
+                    echo $APP_PID > app.pid
+                    echo "Started app with PID: $APP_PID"
+                    
+                    echo "Waiting for app to start..."
+                    sleep 5
+                    
+                    echo "Testing if app is responding..."
+                    curl -f http://localhost:3000 && echo "App is running!" || echo "App failed to respond"
+                '''
             }
         }
     }
     
     post {
-        always {
-            echo '=== PIPELINE COMPLETED ==='
-        }
         success {
-            echo 'SUCCESS: CI/CD Pipeline completed successfully! '
-            echo 'This demonstrates automated:'
-            echo '- Code checkout from GitHub'
-            echo '- Build process'
-            echo '- Testing'
-            echo '- Deployment'
+            echo 'SUCCESS: Real deployment completed! '
+            echo 'App should be running on port 3000'
         }
         failure {
-            echo 'FAILURE: Pipeline failed '
+            echo 'FAILURE: Deployment failed '
         }
     }
 }
