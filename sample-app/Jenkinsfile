@@ -1,0 +1,118 @@
+pipeline {
+    agent any
+    
+    environment {
+        APP_NAME = 'my-demo-app'
+        APP_PORT = '3001'
+        CONTAINER_PORT = '3000'
+    }
+    
+    stages {
+        stage('Environment Check') {
+            steps {
+                echo '=== ENVIRONMENT CHECK ==='
+                sh '''
+                    node --version
+                    npm --version
+                    docker --version
+                '''
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing Node.js dependencies...'
+                sh '''
+                    pwd
+                    ls -la
+                    npm install
+                '''
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                echo 'Running tests...'
+                sh '''
+                    npm test
+                '''
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker image...'
+                script {
+                    def appImage = docker.build("${APP_NAME}:${env.BUILD_NUMBER}")
+                    // Tag as latest
+                    sh "docker tag ${APP_NAME}:${env.BUILD_NUMBER} ${APP_NAME}:latest"
+                }
+            }
+        }
+        
+        stage('Deploy Application') {
+            steps {
+                echo 'Deploying application...'
+                script {
+                    // Stop and remove existing container
+                    sh "docker stop ${APP_NAME} || true"
+                    sh "docker rm ${APP_NAME} || true"
+                    
+                    // Run new container
+                    sh """
+                        docker run -d \
+                        --name ${APP_NAME} \
+                        -p ${APP_PORT}:${CONTAINER_PORT} \
+                        ${APP_NAME}:${env.BUILD_NUMBER}
+                    """
+                    
+                    echo "App deployed at http://localhost:${APP_PORT}"
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                echo 'Performing health check...'
+                script {
+                    sleep(5)
+                    try {
+                        sh "curl -f http://localhost:${APP_PORT} || exit 1"
+                        echo 'Health check passed!'
+                    } catch (Exception e) {
+                        echo 'Health check failed!'
+                        sh "docker logs ${APP_NAME} || true"
+                        throw e
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline completed!'
+            sh 'docker ps -a | grep my-demo-app || true'
+        }
+        success {
+            echo 'Deployment successful!'
+            echo "Application is running at http://localhost:${APP_PORT}"
+        }
+        failure {
+            echo 'Deployment failed!'
+            sh '''
+                echo "=== Debug Information ==="
+                echo "Current directory:"
+                pwd
+                echo "Files in directory:"
+                ls -la
+                echo "Node modules:"
+                ls -la node_modules/ || echo "No node_modules found"
+                echo "App log:"
+                cat app.log || echo "No app.log found"
+                echo "Docker containers:"
+                docker ps -a
+            '''
+        }
+    }
+}

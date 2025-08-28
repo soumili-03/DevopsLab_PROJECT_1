@@ -1,0 +1,10 @@
+{
+  "name": "my-demo-app",
+  "version": "1.0.0",
+  "description": "Demo app for Jenkins CI/CD",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo 'Running tests...' && exit 0"
+  }
+}
