@@ -22,30 +22,33 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 echo 'Installing Node.js dependencies...'
-                sh '''
-                    pwd
-                    ls -la
-                    npm install
-                '''
+                dir('sample-app') {
+                    sh '''
+                        pwd
+                        ls -la
+                        npm install
+                    '''
+                }
             }
         }
         
         stage('Run Tests') {
             steps {
                 echo 'Running tests...'
-                sh '''
-                    npm test
-                '''
+                dir('sample-app') {
+                    sh 'npm test'
+                }
             }
         }
         
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
-                script {
-                    def appImage = docker.build("${APP_NAME}:${env.BUILD_NUMBER}")
-                    // Tag as latest
-                    sh "docker tag ${APP_NAME}:${env.BUILD_NUMBER} ${APP_NAME}:latest"
+                dir('sample-app') {
+                    script {
+                        def appImage = docker.build("${APP_NAME}:${env.BUILD_NUMBER}")
+                        sh "docker tag ${APP_NAME}:${env.BUILD_NUMBER} ${APP_NAME}:latest"
+                    }
                 }
             }
         }
@@ -54,18 +57,14 @@ pipeline {
             steps {
                 echo 'Deploying application...'
                 script {
-                    // Stop and remove existing container
                     sh "docker stop ${APP_NAME} || true"
                     sh "docker rm ${APP_NAME} || true"
-                    
-                    // Run new container
                     sh """
                         docker run -d \
                         --name ${APP_NAME} \
                         -p ${APP_PORT}:${CONTAINER_PORT} \
                         ${APP_NAME}:${env.BUILD_NUMBER}
                     """
-                    
                     echo "App deployed at http://localhost:${APP_PORT}"
                 }
             }
@@ -100,19 +99,20 @@ pipeline {
         }
         failure {
             echo 'Deployment failed!'
-            sh '''
-                echo "=== Debug Information ==="
-                echo "Current directory:"
-                pwd
-                echo "Files in directory:"
-                ls -la
-                echo "Node modules:"
-                ls -la node_modules/ || echo "No node_modules found"
-                echo "App log:"
-                cat app.log || echo "No app.log found"
-                echo "Docker containers:"
-                docker ps -a
-            '''
+            dir('sample-app') {
+                sh '''
+                    echo "=== Debug Information ==="
+                    echo "Current directory:"
+                    pwd
+                    echo "Files in directory:"
+                    ls -la
+                    echo "Node modules:"
+                    ls -la node_modules/ || echo "No node_modules found"
+                    echo "App log:"
+                    cat app.log || echo "No app.log found"
+                '''
+            }
+            sh 'docker ps -a'
         }
     }
 }
